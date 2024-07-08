@@ -1,26 +1,28 @@
 import time
-from pymongo import MongoClient
+from pymongo import MongoClient, ReadPreference
 from pymongo.errors import OperationFailure
 import os
 import subprocess
 
 # User variables
 db_name = 'nebuladb'
-coll_name = 'photos'
+collection_name = 'photos'
 shard_key = {'_id': 1}
 port = 27017
 host = "127.0.0.1"
 database_path = "/System/Volumes/Data/data/db"
-client = MongoClient(f'mongodb://{host}:{port}')
+replication_set = "rs0"
+
+client = MongoClient(f'mongodb://{host}:{port}', replicaSet=replication_set, read_preference=ReadPreference.PRIMARY)
 
 
+# Starts the MongoDB process
 def start_command():
-    # Start MongoDB process in the background
     command = [
         "sudo",
         "mongod",
         "--configsvr",
-        "--replSet", "confServer",
+        "--replSet", replication_set,
         "--dbpath", database_path,
         "--bind_ip", host,
         "--port", str(port)
@@ -28,6 +30,7 @@ def start_command():
     return subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+# Stops the MongoDB process given the subprocess that was returned from start()
 def stop_command(process):
     time.sleep(5)
     process.terminate()
@@ -35,6 +38,7 @@ def stop_command(process):
     print("MongoDB has been closed")
 
 
+# Sends command to MongoDB the manual way
 def send_command(command):
     mongosh_cmd = ["mongosh", "--host", host, "--port", str(port)]
     mongosh_process = subprocess.Popen(mongosh_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -49,14 +53,13 @@ def start_mongo():
         os.system(f"sudo mkdir -p {database_path}")
         os.system(f"sudo chown -R $(id -un) {database_path}")
 
-    mongo_server = start_command()
-
+    start_command()
     # Initialize the replica set
     send_command("rs.initiate()")
     print("MongoDB has been started!")
 
 
-# Enable sharding for the database
+# Enable sharding for the given database
 def enable_sharding(db_name):
     try:
         client.admin.command('enableSharding', db_name)
@@ -86,10 +89,7 @@ def add_shard(shard_uri):
 
 start_mongo()
 # enable_sharding(db_name)  # Enable sharding on the database
-# create_sharded_collection(db_name, coll_name, shard_key)  # Create a sharded collection
-#
-# # add_shard('mongodb://localhost:27017')
-#
-# # Verify shards
+# create_sharded_collection(db_name, collection_name, shard_key)  # Create a sharded collection
+# add_shard(f'{replication_set}/mongodb://{host}:{port}')  # adding another shard
 # shards = client.admin.command('listShards')
 # print("Current shards:", shards)
