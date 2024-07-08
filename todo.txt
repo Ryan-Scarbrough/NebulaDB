@@ -1,0 +1,6 @@
+Database Frame:
+- fix current_dir stuff in database_frame
+
+BUGS:
+- when you click away from database frame to another frame and then go back to the database frame,
+you have to click three times before everything shows up
