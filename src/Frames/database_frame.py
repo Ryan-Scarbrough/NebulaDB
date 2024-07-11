@@ -40,7 +40,7 @@ class Databases(customtkinter.CTkFrame):
         current_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
         current_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
         for i in range(5):  # add items with images
-            self.scrollable_frame.add_item(f"Database {i}", image=customtkinter.CTkImage(
+            self.scrollable_frame.add_item(f"Databases {i}", image=customtkinter.CTkImage(
                 Image.open(os.path.join(current_dir, "icons", "database_light.png"))), button_image=customtkinter.CTkImage(
                 Image.open(os.path.join(current_dir, "icons", "info_light.png"))))
 
@@ -55,7 +55,7 @@ class Databases(customtkinter.CTkFrame):
 
     def add_button_clicked(self):
         new_window = customtkinter.CTkToplevel()  # Create a new top-level window
-        new_window.title("Add Database")
+        new_window.title("Add Databases")
 
         # Add a label to the new window
         label = customtkinter.CTkLabel(new_window, text="Enter your details:")
@@ -72,7 +72,7 @@ class Databases(customtkinter.CTkFrame):
         entry3.pack(pady=5)
 
         # Add a submit button
-        submit_button = customtkinter.CTkButton(new_window, text="Add Database",
+        submit_button = customtkinter.CTkButton(new_window, text="Add Databases",
                                                 command=lambda: self.submit_data(entry1.get(), entry2.get(), entry3.get()))
         submit_button.pack(pady=10)
 

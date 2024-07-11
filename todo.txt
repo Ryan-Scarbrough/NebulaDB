@@ -1,5 +1,8 @@
-Database Frame:
+Frames:
 - fix current_dir stuff in database_frame
+
+Databases:
+- use better way to treat spaces as literal for paths (raw strings?)
 
 BUGS:
 - when you click away from database frame to another frame and then go back to the database frame,
