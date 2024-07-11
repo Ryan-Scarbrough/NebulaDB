@@ -1,95 +1,73 @@
-import time
-from pymongo import MongoClient, ReadPreference
-from pymongo.errors import OperationFailure
+from pathlib import Path
 import os
-import subprocess
+from datetime import datetime
 
-# User variables
-db_name = 'nebuladb'
-collection_name = 'photos'
-shard_key = {'_id': 1}
-port = 27017
-host = "127.0.0.1"
-database_path = "/System/Volumes/Data/data/db"
-replication_set = "rs0"
-
-client = MongoClient(f'mongodb://{host}:{port}', replicaSet=replication_set, read_preference=ReadPreference.PRIMARY)
+mongo_log_dir = Path.cwd().parent / 'logs' / 'mongo'
 
 
-# Starts the MongoDB process
-def start_command():
-    command = [
-        "sudo",
-        "mongod",
-        "--configsvr",
-        "--replSet", replication_set,
-        "--dbpath", database_path,
-        "--bind_ip", host,
-        "--port", str(port)
-    ]
-    return subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+class Config:
+    port = 27020
+    host = 'localhost'
+    repl = 'config_repl'
+    directory = 'config'
+
+    def start(self):
+        now = datetime.now().strftime("%Y%m%d_%H%M%S")
+        os.system(f"mongod --configsvr --port {self.port} --bind_ip {self.host} --replSet {self.repl} --dbpath {self.directory} > {str(mongo_log_dir / self.directory / now)}")
 
 
-# Stops the MongoDB process given the subprocess that was returned from start()
-def stop_command(process):
-    time.sleep(5)
-    process.terminate()
-    process.wait()
-    print("MongoDB has been closed")
+class ShardOne:
+    port = 28021
+    host = 'localhost'
+    repl = 'shard1_repl'
+    directory = 'shard1'
+
+    def start(self):
+        now = datetime.now().strftime("%Y%m%d_%H%M%S")
+        os.system(f"mongod --shardsvr --port {self.port} --bind_ip {self.host} --replSet {self.repl} --dbpath {self.directory} > {str(mongo_log_dir / self.directory / now)}")
 
 
-# Sends command to MongoDB the manual way
-def send_command(command):
-    mongosh_cmd = ["mongosh", "--host", host, "--port", str(port)]
-    mongosh_process = subprocess.Popen(mongosh_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE, text=True)
-    mongosh_process.stdin.write(command + "\n")
-    mongosh_process.stdin.flush()
+class Mongos:
+    port = 29000
+    host = 'localhost'
+    repl = 'config_repl'
+    directory = 'mongos'
+
+    def start(self):
+        now = datetime.now().strftime("%Y%m%d_%H%M%S")
+        os.system(f"mongos --configdb {Config.repl}/{Config.host}:{Config.port} --bind_ip {self.host} --port {self.port} > {str(mongo_log_dir / self.directory / now)}")
 
 
-# TODO: make better way to prevent init twice: if (rs.status().codeName == "NotYetInitialized") rs.initiate()
-def start_mongo():
-    if not os.path.exists(database_path):
-        os.system(f"sudo mkdir -p {database_path}")
-        os.system(f"sudo chown -R $(id -un) {database_path}")
-
-    start_command()
-    # Initialize the replica set
-    send_command("rs.initiate()")
-    print("MongoDB has been started!")
+def _make_dir_helper(directories: list, parent_directory):
+    os.chdir(parent_directory)
+    for d in directories:
+        try:
+            os.makedirs(d)
+        except FileExistsError:
+            print(f"Directory {d} already exists. Skipping creation")
 
 
-# Enable sharding for the given database
-def enable_sharding(db_name):
+# Making the folders for all the servers
+def make_directories():
+    project_home = Path.cwd().parent
+
     try:
-        client.admin.command('enableSharding', db_name)
-        print(f"Sharding enabled for database: {db_name}")
-    except OperationFailure as e:
-        print(f"Error enabling sharding: {e}")
+        os.makedirs('mongo')
+    except FileExistsError:
+        print(f"config/mongo directory already exists. Skipping creation")
+
+    # If another directory is added, make sure Mongos is the last one
+    directory_names = [Config.directory, ShardOne.directory, Mongos.directory]
+
+    mongo_servers = project_home / 'config' / 'mongo'
+    _make_dir_helper(directory_names[:-1], mongo_servers)
+
+    mongo_logs = project_home / 'logs' / 'mongo'
+    _make_dir_helper(directory_names, mongo_logs)
 
 
-# Create a sharded collection
-def create_sharded_collection(db_name, coll_name, shard_key):
-    try:
-        client[db_name].create_collection(coll_name)
-        client.admin.command('shardCollection', f"{db_name}.{coll_name}", key=shard_key)
-        print(f"Sharded collection created: {db_name}.{coll_name} with shard key {shard_key}")
-    except OperationFailure as e:
-        print(f"Error creating sharded collection: {e}")
 
 
-# Add a new shard
-def add_shard(shard_uri):
-    try:
-        client.admin.command('addShard', shard_uri)
-        print(f"Shard added: {shard_uri}")
-    except OperationFailure as e:
-        print(f"Error adding shard: {e}")
 
 
-start_mongo()
-# enable_sharding(db_name)  # Enable sharding on the database
-# create_sharded_collection(db_name, collection_name, shard_key)  # Create a sharded collection
-# add_shard(f'{replication_set}/mongodb://{host}:{port}')  # adding another shard
-# shards = client.admin.command('listShards')
-# print("Current shards:", shards)
+
