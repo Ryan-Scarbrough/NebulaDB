@@ -1,19 +1,22 @@
 import os
-from tkinter import TclError
+from tkinter import TclError, filedialog
 from PIL import Image
 import customtkinter
 from src.Frames.scrollable_frame import ScrollableFrame
 
 
-# This is a patch to override a library function so I can have a transparent background on hover
-# I know this is jank, but Im tired of annoying error messages that mean nothing to me
+# This is a patch to override a library function, so I can have a transparent background on hover
+# I know this is jank, but I'm tired of annoying error messages that mean nothing to me
 def patched_on_enter(self, *args):
     try:
         if self._image_label is not None:
             self._image_label.configure(bg=self._apply_appearance_mode(""))
     except TclError:
         pass
+
+
 customtkinter.windows.widgets.ctk_button.CTkButton._on_enter = patched_on_enter
+
 
 # Databases frame class
 class Databases(customtkinter.CTkFrame):
@@ -35,7 +38,7 @@ class Databases(customtkinter.CTkFrame):
         self.add_button.pack(side="left", padx=(20, 10), pady=10)
         self.remove_button.pack(side="left", padx=(10, 20), pady=10)
 
-        # sample add items, fix the current_dir shenanigas
+        # sample add items, fix the current_dir shenanigans
         current_dir = os.path.dirname(os.path.abspath(__file__))
         current_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
         current_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
@@ -47,34 +50,8 @@ class Databases(customtkinter.CTkFrame):
     def database_info_button(self, item):
         print(f"example info database: {item}")
 
-    # Function to handle data submission (can be customized)
-    def submit_data(first_name, last_name, email):
-        print(f"First Name: {first_name}")
-        print(f"Last Name: {last_name}")
-        print(f"Email: {email}")
-
     def add_button_clicked(self):
-        new_window = customtkinter.CTkToplevel()  # Create a new top-level window
-        new_window.title("Add Database")
-
-        # Add a label to the new window
-        label = customtkinter.CTkLabel(new_window, text="Enter your details:")
-        label.pack(pady=10)
-
-        # Add text fields (Entry widgets) to the new window
-        entry1 = customtkinter.CTkEntry(new_window, placeholder_text="First Name")
-        entry1.pack(pady=5)
-
-        entry2 = customtkinter.CTkEntry(new_window, placeholder_text="Last Name")
-        entry2.pack(pady=5)
-
-        entry3 = customtkinter.CTkEntry(new_window, placeholder_text="Email")
-        entry3.pack(pady=5)
-
-        # Add a submit button
-        submit_button = customtkinter.CTkButton(new_window, text="Add Database",
-                                                command=lambda: self.submit_data(entry1.get(), entry2.get(), entry3.get()))
-        submit_button.pack(pady=10)
+        AddWindow(self, corner_radius=0, fg_color="transparent")
 
     def remove_button_clicked(self):
         print("remove button clicked")
@@ -84,3 +61,54 @@ class Databases(customtkinter.CTkFrame):
         #     self.scrollable_frame.selected_row = None
         # else:
         #     print("No item selected to remove")
+
+
+class AddWindow(customtkinter.CTkFrame):
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+
+        self.new_window = customtkinter.CTkToplevel()  # Create a new top-level window
+        self.new_window.title("Add Database")
+        self.new_window.geometry("600x300")
+
+        # Configure the grid for the new window to take up the entire window
+        self.new_window.grid_rowconfigure(0, weight=1)
+        self.new_window.grid_columnconfigure(0, weight=1)
+
+        # Create the frame that takes up the entire window
+        frame = customtkinter.CTkFrame(self.new_window, corner_radius=5)
+        frame.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+
+        frame.grid_rowconfigure(5, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
+        frame.grid_columnconfigure(1, weight=1)
+        frame.grid_columnconfigure(2, weight=1)
+
+        # Dropdown for choosing local/remote
+        option_menu = customtkinter.CTkOptionMenu(frame, values=["Local", "Remote"], command=self.option_menu_callback)
+        option_menu.set("Local")
+        option_menu.grid(row=0, column=1, sticky="n", padx=5, pady=(10, 5))
+
+        # Choosing path
+        path_label = customtkinter.CTkLabel(frame, text="No path selected")
+        path_label.grid(row=1, column=1, sticky="n", padx=5, pady=(5, 0))
+
+        select_path_button = customtkinter.CTkButton(frame, text="Select Path", command=lambda: self.select_path(path_label))
+        select_path_button.grid(row=2, column=1, sticky="n", padx=5, pady=5)
+
+        # Submit button
+        submit_button = customtkinter.CTkButton(frame, text="Add Database", command=lambda: self.submit_data(option_menu.get(),
+                                                                                                             path_label.text))
+        submit_button.grid(row=5, column=1, sticky="s", padx=5, pady=(5, 10))
+
+    def select_path(self, path_label):
+        path = filedialog.askdirectory()
+        if path:
+            path_label.configure(text=path)
+
+    def submit_data(self, db_type, path):
+        print(f"Database Type: {db_type}")
+        print(f"Path: {path}")
+
+    def option_menu_callback(self, choice):
+        print("optionmenu dropdown clicked:", choice)

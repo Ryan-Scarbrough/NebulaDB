@@ -185,10 +185,13 @@ def make_directories():
     _make_dir_helper(directory_names, mongo_logs)
 
 
-def initialize():
+# Should be passed a path for the first shard chosen by the user
+def initialize(path: str):
     make_directories()
     Config().configure()
-    ShardOne().configure()
+    first_shard = ShardOne()
+    first_shard.path = path
+    first_shard.configure()
     Mongos().configure()
 
 

@@ -1,9 +1,13 @@
+General:
+- UI on Mac is kinda buggy with things flashing in and out. Find way to mitigate
+
 Frames:
 - fix current_dir stuff in database_frame
 
 Databases:
 - use better way to treat spaces as literal for paths (raw strings?)
-- instead of trying to connect to a db to check if it's alive, just ping it
+- check ports before starting servers
+- make sure mongodb is installed before attempting to run any of the servers
 
 BUGS:
 - when you click away from database frame to another frame and then go back to the database frame,
