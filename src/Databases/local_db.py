@@ -20,6 +20,16 @@ def is_port_in_use(port):
         return False
 
 
+def ping_port(host, port, timeout=5):
+    start_time = time.time()
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            end_time = time.time()
+            return end_time - start_time
+    except (socket.timeout, ConnectionRefusedError, OSError):
+        return None
+
+
 # Having a space in file names messes stuff up
 def fix_path(path):
     path = str(path)
@@ -53,13 +63,8 @@ class ServerMixin:
         raise NotImplementedError("Subclasses should define server_type")
 
     def is_open(self):
-        try:
-            test = MongoClient(self.host, self.port, directConnection=True, serverSelectionTimeoutMS=5000)
-            test.server_info()
-            test.close()
-            return True
-        except ConnectionFailure:
-            return False
+        response = ping_port(self.host, self.port)
+        return False if response is None else True
 
     def start(self):
         if self.is_open():

@@ -3,6 +3,7 @@ Frames:
 
 Databases:
 - use better way to treat spaces as literal for paths (raw strings?)
+- instead of trying to connect to a db to check if it's alive, just ping it
 
 BUGS:
 - when you click away from database frame to another frame and then go back to the database frame,
