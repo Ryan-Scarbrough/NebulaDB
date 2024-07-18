@@ -1,5 +1,6 @@
 General:
 - UI on Mac is kinda buggy with things flashing in and out. Find way to mitigate
+- find less jank way to do paths in the project
 
 Frames:
 - fix current_dir stuff in database_frame

@@ -1,4 +1,7 @@
+import inspect
+import json
 import time
+from json import JSONDecodeError
 from pathlib import Path
 import os
 from datetime import datetime
@@ -7,8 +10,21 @@ from bson.son import SON
 from pymongo.errors import OperationFailure, ConnectionFailure
 import socket
 
-mongo_log_dir = Path.cwd().parent.parent / 'logs' / 'mongo'
-project_home = Path.cwd().parent.parent
+
+class Jank:
+    pass
+
+
+# Having a space in file names messes stuff up
+def fix_path(path):
+    path = str(path)
+    return path.replace(" ", "\\ ")
+
+
+class_file_path = inspect.getfile(Jank)
+project_home = Path(class_file_path).parent.parent.parent
+mongo_log_dir = project_home / 'logs' / 'mongo'
+json_file_path = project_home / 'config' / 'databases.json'
 
 
 def is_port_in_use(port):
@@ -28,12 +44,6 @@ def ping_port(host, port, timeout=5):
             return end_time - start_time
     except (socket.timeout, ConnectionRefusedError, OSError):
         return None
-
-
-# Having a space in file names messes stuff up
-def fix_path(path):
-    path = str(path)
-    return path.replace(" ", "\\ ")
 
 
 # This is just a mixin class so that code can be reused and not be redundant copy-paste
@@ -118,8 +128,7 @@ class Config(ServerMixin):
     host = 'localhost'
     repl = 'config_repl'
     directory = 'config'
-    path = project_home / 'config' / 'mongo' / directory
-    path = fix_path(path)
+    path = fix_path(project_home / 'config' / 'mongo' / directory)
     server_type = 'configsvr'
 
 
@@ -128,8 +137,7 @@ class ShardOne(ServerMixin):
     host = 'localhost'
     repl = 'shard1_repl'
     directory = 'shard1'
-    path = project_home / 'config' / 'mongo' / directory
-    path = fix_path(path)
+    path = None
     server_type = 'shardsvr'
 
 
@@ -138,8 +146,7 @@ class Mongos(ServerMixin):
     host = 'localhost'
     repl = 'config_repl'
     directory = 'mongos'
-    path = project_home / 'config' / 'mongo' / directory
-    path = fix_path(path)
+    path = fix_path(project_home / 'config' / 'mongo' / directory)
     server_type = 'mongos'
 
     def start(self):
@@ -176,7 +183,7 @@ def make_directories():
         print(f"Directory logs/mongo already exists. Skipping creation")
 
     # If another directory is added, make sure Mongos is the last one
-    directory_names = [Config.directory, ShardOne.directory, Mongos.directory]
+    directory_names = [Config.directory, Mongos.directory]
 
     mongo_servers = project_home / 'config' / 'mongo'
     _make_dir_helper(directory_names[:-1], mongo_servers)
@@ -185,14 +192,90 @@ def make_directories():
     _make_dir_helper(directory_names, mongo_logs)
 
 
+# Should only be called when first local db is created. Writing the initial data for a local database to the .json file
+def json_init(first_shard):
+    config_json = {
+        "type": "config",
+        "path": Config.path,
+        "port": Config.port,
+        "host": Config.host
+    }
+
+    mongos_json = {
+        "type": "mongos",
+        "path": Mongos.path,
+        "port": Mongos.port,
+        "host": Mongos.host
+    }
+
+    shard_json = {
+        "shard_index": 1,
+        "name": "Database 1",
+        "path": first_shard.path,
+        "port": ShardOne.port,
+        "host": ShardOne.host
+    }
+
+    # Read the existing data from the JSON file, create empty struct if DNE
+    try:
+        with open(json_file_path, 'r') as json_file:
+            try:
+                data = json.load(json_file)
+            except JSONDecodeError:  # empty file
+                data = {}
+    except FileNotFoundError:
+        print("Database .json not found. Creating one")
+        data = {}  # if the file does not exist, create an empty data structure
+
+    # If databases exists, json has already been initialized
+    try:
+        if 'local' in data or isinstance(data['local'], list):
+            return
+    except KeyError:
+        pass
+
+    # Add the new database to the list of databases
+    data['local'] = {}
+    data['local']['config'] = config_json
+    data['local']['mongos'] = mongos_json
+    data['local']['shards'] = []
+    data['local']['shards'].append(shard_json)
+
+    # Write the updated data back to the JSON file
+    with open(json_file_path, 'w') as json_file:
+        json.dump(data, json_file, indent=4)
+
+
+# Checking json file to see if this is the first local db
+def should_init() -> bool:
+    try:
+        with open(json_file_path, 'r') as json_file:
+            try:
+                data = json.load(json_file)
+            except JSONDecodeError:
+                return True
+            if "Local" in data and isinstance(data["Local"], list):
+                return False
+            else:
+                return True
+    except FileNotFoundError:
+        return True
+
+
 # Should be passed a path for the first shard chosen by the user
-def initialize(path: str):
+def initialize(path: str) -> bool:
+    if not should_init():
+        print("Initialization already complete. Skipping")
+        return False
+
     make_directories()
     Config().configure()
     first_shard = ShardOne()
-    first_shard.path = path
+    first_shard.path = fix_path(path)
     first_shard.configure()
     Mongos().configure()
+    json_init(first_shard)
+    return True
 
 
 def start():

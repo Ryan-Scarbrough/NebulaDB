@@ -3,6 +3,7 @@ from tkinter import TclError, filedialog
 from PIL import Image
 import customtkinter
 from src.Frames.scrollable_frame import ScrollableFrame
+from src.Databases import local_db
 
 
 # This is a patch to override a library function, so I can have a transparent background on hover
@@ -106,9 +107,14 @@ class AddWindow(customtkinter.CTkFrame):
         if path:
             path_label.configure(text=path)
 
-    def submit_data(self, db_type, path):
-        print(f"Database Type: {db_type}")
-        print(f"Path: {path}")
-
     def option_menu_callback(self, choice):
         print("optionmenu dropdown clicked:", choice)
+
+    def submit_data(self, db_type, path):
+        if db_type == 'Local':
+            # Checking if init needs to be done, otherwise continue
+            result = local_db.initialize(path)
+            if result:
+                return
+
+            # add shard here
