@@ -1,6 +1,10 @@
 General:
 - UI on Mac is kinda buggy with things flashing in and out. Find way to mitigate
 - find less jank way to do paths in the project
+- Make a way to change the path of the shard
+
+UI:
+- Clean up UI in the add database window
 
 Frames:
 - fix current_dir stuff in database_frame
@@ -13,3 +17,4 @@ Databases:
 BUGS:
 - when you click away from database frame to another frame and then go back to the database frame,
 you have to click three times before everything shows up
+- on windows, the color behind the image of the nebula isnt the same color as the rest of the window

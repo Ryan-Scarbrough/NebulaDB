@@ -15,14 +15,8 @@ class Jank:
     pass
 
 
-# Having a space in file names messes stuff up
-def fix_path(path):
-    path = str(path)
-    return path.replace(" ", "\\ ")
-
-
-class_file_path = inspect.getfile(Jank)
-project_home = Path(class_file_path).parent.parent.parent
+class_file_path = Path(inspect.getfile(Jank)).resolve()
+project_home = class_file_path.parent.parent.parent
 mongo_log_dir = project_home / 'logs' / 'mongo'
 json_file_path = project_home / 'config' / 'databases.json'
 
@@ -46,7 +40,6 @@ def ping_port(host, port, timeout=5):
         return None
 
 
-# This is just a mixin class so that code can be reused and not be redundant copy-paste
 class ServerMixin:
     @property
     def host(self):
@@ -82,11 +75,11 @@ class ServerMixin:
             return
 
         now = str(datetime.now().strftime("%Y%m%d_%H%M%S")) + ".log"
+        log_path = mongo_log_dir / self.directory / now
         os.system(
-            f"nohup mongod --{self.server_type} --port {self.port} --bind_ip {self.host} --replSet {self.repl} --dbpath {self.path} > {fix_path(mongo_log_dir / self.directory / now)} &")
+            f"nohup mongod --{self.server_type} --port {self.port} --bind_ip {self.host} --replSet {self.repl} --dbpath {self.path} > {log_path} &")
 
     def stop(self):
-        # Its probably fine
         try:
             mongo_socket = MongoClient(self.host, self.port, directConnection=True)
             db = mongo_socket.admin
@@ -98,9 +91,8 @@ class ServerMixin:
         if not self.is_open():
             print("Server is not open. Starting...")
             self.start()
-            time.sleep(1)  # wait for server to start
+            time.sleep(1)
 
-        # Mongos does not need configuration in the same way the other servers do
         if self.server_type == 'mongos':
             print("Mongos server does not require direct configuration")
             return
@@ -109,10 +101,9 @@ class ServerMixin:
         db = mongo_socket.admin
 
         try:
-            db.command(SON([('replSetGetStatus', 1)]))  # check if the server is already configured
+            db.command(SON([('replSetGetStatus', 1)]))
             print("Server is already configured. Ignoring command")
         except OperationFailure:
-            # Continue with configuration if not already configured
             rsconf = {"_id": self.repl, "members": [{"_id": 0, "host": f"{self.host}:{self.port}"}]}
             try:
                 result = db.command("replSetInitiate", rsconf)
@@ -128,7 +119,7 @@ class Config(ServerMixin):
     host = 'localhost'
     repl = 'config_repl'
     directory = 'config'
-    path = fix_path(project_home / 'config' / 'mongo' / directory)
+    path = project_home / 'config' / 'mongo' / directory
     server_type = 'configsvr'
 
 
@@ -146,7 +137,7 @@ class Mongos(ServerMixin):
     host = 'localhost'
     repl = 'config_repl'
     directory = 'mongos'
-    path = fix_path(project_home / 'config' / 'mongo' / directory)
+    path = project_home / 'config' / 'mongo' / directory
     server_type = 'mongos'
 
     def start(self):
@@ -155,36 +146,22 @@ class Mongos(ServerMixin):
             return
 
         now = str(datetime.now().strftime("%Y%m%d_%H%M%S")) + ".log"
+        log_path = mongo_log_dir / self.directory / now
         os.system(
-            f"nohup mongos --configdb {Config.repl}/{Config.host}:{Config.port} --bind_ip {self.host} --port {self.port} > {fix_path(mongo_log_dir / self.directory / now)} &")
+            f"nohup mongos --configdb {Config.repl}/{Config.host}:{Config.port} --bind_ip {self.host} --port {self.port} > {log_path} &")
 
 
 def _make_dir_helper(directories: list, parent_directory):
-    os.chdir(parent_directory)
+    parent_directory.mkdir(parents=True, exist_ok=True)
     for d in directories:
-        try:
-            os.makedirs(d)
-        except FileExistsError:
-            print(f"Directory {d} already exists. Skipping creation")
+        (parent_directory / d).mkdir(parents=True, exist_ok=True)
 
 
-# Making the folders for all the servers
 def make_directories():
-    try:
-        os.chdir(project_home / 'config')
-        os.makedirs('mongo')
-    except FileExistsError:
-        print(f"Directory config/mongo already exists. Skipping creation")
+    (project_home / 'config' / 'mongo').mkdir(parents=True, exist_ok=True)
+    (project_home / 'logs' / 'mongo').mkdir(parents=True, exist_ok=True)
 
-    try:
-        os.chdir(project_home / 'logs')
-        os.makedirs('mongo')
-    except FileExistsError:
-        print(f"Directory logs/mongo already exists. Skipping creation")
-
-    # If another directory is added, make sure Mongos is the last one
     directory_names = [Config.directory, Mongos.directory]
-
     mongo_servers = project_home / 'config' / 'mongo'
     _make_dir_helper(directory_names[:-1], mongo_servers)
 
@@ -192,18 +169,17 @@ def make_directories():
     _make_dir_helper(directory_names, mongo_logs)
 
 
-# Should only be called when first local db is created. Writing the initial data for a local database to the .json file
 def json_init(first_shard):
     config_json = {
         "type": "config",
-        "path": Config.path,
+        "path": str(Config.path),
         "port": Config.port,
         "host": Config.host
     }
 
     mongos_json = {
         "type": "mongos",
-        "path": Mongos.path,
+        "path": str(Mongos.path),
         "port": Mongos.port,
         "host": Mongos.host
     }
@@ -211,42 +187,37 @@ def json_init(first_shard):
     shard_json = {
         "shard_index": 1,
         "name": "Database 1",
-        "path": first_shard.path,
+        "path": str(first_shard.path),
         "port": ShardOne.port,
         "host": ShardOne.host
     }
 
-    # Read the existing data from the JSON file, create empty struct if DNE
     try:
         with open(json_file_path, 'r') as json_file:
             try:
                 data = json.load(json_file)
-            except JSONDecodeError:  # empty file
+            except JSONDecodeError:
                 data = {}
     except FileNotFoundError:
         print("Database .json not found. Creating one")
-        data = {}  # if the file does not exist, create an empty data structure
+        data = {}
 
-    # If databases exists, json has already been initialized
     try:
         if 'local' in data or isinstance(data['local'], list):
             return
     except KeyError:
         pass
 
-    # Add the new database to the list of databases
     data['local'] = {}
     data['local']['config'] = config_json
     data['local']['mongos'] = mongos_json
     data['local']['shards'] = []
     data['local']['shards'].append(shard_json)
 
-    # Write the updated data back to the JSON file
     with open(json_file_path, 'w') as json_file:
         json.dump(data, json_file, indent=4)
 
 
-# Checking json file to see if this is the first local db
 def should_init() -> bool:
     try:
         with open(json_file_path, 'r') as json_file:
@@ -262,7 +233,6 @@ def should_init() -> bool:
         return True
 
 
-# Should be passed a path for the first shard chosen by the user
 def initialize(path: str) -> bool:
     if not should_init():
         print("Initialization already complete. Skipping")
@@ -271,7 +241,7 @@ def initialize(path: str) -> bool:
     make_directories()
     Config().configure()
     first_shard = ShardOne()
-    first_shard.path = fix_path(path)
+    first_shard.path = Path(path).resolve()
     first_shard.configure()
     Mongos().configure()
     json_init(first_shard)
