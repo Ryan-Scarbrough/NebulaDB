@@ -4,7 +4,8 @@ General:
 - Make a way to change the path of the shard
 
 UI:
-- Clean up UI in the add database window
+- Clean up UI in the add database window. Ideally, *ALL* options for local and remote should be listed in the window and the ones that are not needed for that specific type of server are greyed out and disabled. This may get cluttered though. Just an idea
+- (MacOS) Force focus the add database window so that the user cant click on the main window and whenever the application regains focus, the top level window is the one that gets the focus instead of the main window. Otherwise you have to click twice on the top level window to gain focus.
 
 Frames:
 - fix current_dir stuff in database_frame
@@ -14,7 +15,7 @@ Databases:
 - check ports before starting servers
 - make sure mongodb is installed before attempting to run any of the servers
 
-BUGS:
+BUG (Yay OS-exclusive bugs. My favorite!):
 - when you click away from database frame to another frame and then go back to the database frame,
 you have to click three times before everything shows up
 - on windows, the color behind the image of the nebula isnt the same color as the rest of the window

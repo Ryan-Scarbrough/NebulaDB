@@ -11,11 +11,11 @@ from pymongo.errors import OperationFailure, ConnectionFailure
 import socket
 
 
-class Jank:
+class FindMe:
     pass
 
 
-class_file_path = Path(inspect.getfile(Jank)).resolve()
+class_file_path = Path(inspect.getfile(FindMe)).resolve()
 project_home = class_file_path.parent.parent.parent
 mongo_log_dir = project_home / 'logs' / 'mongo'
 json_file_path = project_home / 'config' / 'databases.json'
