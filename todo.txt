@@ -2,6 +2,7 @@ General:
 - UI on Mac is kinda buggy with things flashing in and out. Find way to mitigate
 - find less jank way to do paths in the project
 - Make a way to change the path of the shard
+- Things are starting to get messy. Perhaps its best to implement actual logs and remove print statements
 
 UI:
 - Clean up UI in the add database window. Ideally, *ALL* options for local and remote should be listed in the window and the ones that are not needed for that specific type of server are greyed out and disabled. This may get cluttered though. Just an idea

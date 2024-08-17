@@ -70,7 +70,7 @@ class AddWindow(customtkinter.CTkFrame):
 
         self.new_window = customtkinter.CTkToplevel()  # Create a new top-level window
         self.new_window.title("Add Database")
-        self.new_window.geometry("600x300")
+        self.new_window.geometry("600x350")
 
         # Configure the grid for the new window to take up the entire window
         self.new_window.grid_rowconfigure(0, weight=1)
@@ -80,7 +80,7 @@ class AddWindow(customtkinter.CTkFrame):
         frame = customtkinter.CTkFrame(self.new_window, corner_radius=5)
         frame.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
-        frame.grid_rowconfigure(5, weight=1)
+        frame.grid_rowconfigure(7, weight=1)
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
         frame.grid_columnconfigure(2, weight=1)
@@ -90,17 +90,35 @@ class AddWindow(customtkinter.CTkFrame):
         option_menu.set("Local")
         option_menu.grid(row=0, column=1, sticky="n", padx=5, pady=(10, 5))
 
+        # Divider line
+        divider_line = customtkinter.CTkFrame(frame, height=1, fg_color="white")
+        divider_line.grid(row=1, column=1, sticky="ew", padx=5, pady=(5, 10))
+
         # Choosing path
         path_label = customtkinter.CTkLabel(frame, text="No path selected")
-        path_label.grid(row=1, column=1, sticky="n", padx=5, pady=(5, 0))
+        path_label.grid(row=2, column=1, sticky="n", padx=5, pady=1)
 
         select_path_button = customtkinter.CTkButton(frame, text="Select Path", command=lambda: self.select_path(path_label))
-        select_path_button.grid(row=2, column=1, sticky="n", padx=5, pady=5)
+        select_path_button.grid(row=3, column=1, sticky="n", padx=5, pady=1)
+
+        # Port
+        port_label = customtkinter.CTkLabel(frame, text="Port")
+        port_label.grid(row=4, column=1, sticky="n", padx=5, pady=1)
+
+        port_entry = customtkinter.CTkEntry(frame, validate="key", validatecommand=(frame.register(lambda char: char.isdigit() or char == ""), '%S'))
+        port_entry.grid(row=5, column=1, sticky='n', padx=5, pady=1)
+
+        # Host
+        host_label = customtkinter.CTkLabel(frame, text="Host")
+        host_label.grid(row=6, column=1, sticky="n", padx=5, pady=1)
+
+        host_entry = customtkinter.CTkEntry(frame)
+        host_entry.grid(row=7, column=1, sticky='n', padx=5, pady=1)
 
         # Submit button
         submit_button = customtkinter.CTkButton(frame, text="Add Database", command=lambda: self.submit_data(option_menu.get(),
                                                                                                              path_label.text))
-        submit_button.grid(row=5, column=1, sticky="s", padx=5, pady=(5, 10))
+        submit_button.grid(row=8, column=1, sticky="n", padx=5, pady=(50, 10))
 
     def select_path(self, path_label):
         path = filedialog.askdirectory()
